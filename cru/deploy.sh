@@ -25,7 +25,7 @@ gcloud run deploy mcp-atlassian \
   --network="$NETWORK" \
   --subnet="$SUBNET" \
   --network-tags=egress-internal \
-  --vpc-egress=all-traffic \
+  --vpc-egress=private-ranges-only \
   --allow-unauthenticated \
   --port=3000 \
   --set-env-vars="TRANSPORT=streamable-http" \

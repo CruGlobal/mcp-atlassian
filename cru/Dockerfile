@@ -1,30 +1,49 @@
-# Extends the upstream mcp-atlassian image with a Firestore-backed
-# AsyncKeyValue store for OAuth token persistence on Cloud Run.
+# Builds mcp-atlassian from source (to get client_storage factory support)
+# with Firestore backend and /etc/hosts injection for Cloud Run.
 #
 # Build from repo root:
-#   docker build -f cru/Dockerfile -t mcp-atlassian-cru .
-#
-# Or targeting Artifact Registry:
-#   docker build -f cru/Dockerfile \
-#     -t us-central1-docker.pkg.dev/cru-mattdrees-sandbox-poc/mcp-atlassian/mcp-atlassian:latest .
+#   docker build --platform linux/amd64 -f cru/Dockerfile -t mcp-atlassian-cru .
 
-FROM ghcr.io/sooperset/mcp-atlassian:latest
+# --- Build stage ---
+FROM ghcr.io/astral-sh/uv:python3.13-alpine AS uv
 
-USER root
+WORKDIR /app
+ENV UV_COMPILE_BYTECODE=1
+ENV UV_LINK_MODE=copy
 
-RUN pip install --no-cache-dir google-cloud-firestore
+# Copy project files for dependency resolution
+COPY pyproject.toml README.md uv.lock /app/
+RUN uv sync --frozen --no-install-project --no-dev --no-editable
 
-# Copy the Firestore store module so it's importable as `firestore_store`
+# Copy source and install
+COPY src /app/src
+RUN uv sync --frozen --no-dev --no-editable
+
+# Install Firestore into the venv
+RUN uv pip install --python=/app/.venv/bin/python --no-cache google-cloud-firestore
+
+# Clean up
+RUN find /app/.venv -name '__pycache__' -type d -exec rm -rf {} + && \
+    find /app/.venv -name '*.pyc' -delete && \
+    find /app/.venv -name '*.pyo' -delete
+
+# --- Final stage ---
+FROM python:3.13-alpine
+
+RUN adduser -D -h /home/app -s /bin/sh app
+RUN apk add --no-cache su-exec
+WORKDIR /app
+
+COPY --from=uv --chown=app:app /app/.venv /app/.venv
+
+# Copy the Firestore store module
 COPY cru/firestore_store /app/firestore_store
 
+ENV PATH="/app/.venv/bin:$PATH"
+ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app
 
-# Entrypoint wrapper runs as root so it can write to /etc/hosts, then execs
-# mcp-atlassian as the app user via su-exec.
-RUN apk add --no-cache su-exec
 COPY cru/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-# Note: stays as root so entrypoint.sh can modify /etc/hosts;
-# the script drops to app via su-exec before exec'ing mcp-atlassian.
 ENTRYPOINT ["/entrypoint.sh"]
