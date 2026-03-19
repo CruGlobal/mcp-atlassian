@@ -1,8 +1,9 @@
+# syntax=docker/dockerfile:1
 # Builds mcp-atlassian from source (to get client_storage factory support)
 # with Firestore backend and /etc/hosts injection for Cloud Run.
 #
 # Build from repo root:
-#   docker build --platform linux/amd64 -f cru/Dockerfile -t mcp-atlassian-cru .
+#   docker buildx build --platform linux/amd64 -f cru/Dockerfile -t mcp-atlassian-cru .
 
 # --- Build stage ---
 FROM ghcr.io/astral-sh/uv:python3.13-alpine AS uv
@@ -11,18 +12,24 @@ WORKDIR /app
 ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
 
-# Copy project files for dependency resolution
-COPY pyproject.toml README.md uv.lock /app/
-RUN uv sync --frozen --no-install-project --no-dev --no-editable
+# Install dependencies first (cached layer)
+RUN --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+    --mount=type=bind,source=README.md,target=README.md \
+    --mount=type=bind,source=uv.lock,target=uv.lock \
+    --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-install-project --no-dev --no-editable
 
-# Copy source and install
-COPY src /app/src
-RUN uv sync --frozen --no-dev --no-editable
+# Copy source and install project
+COPY . /app
+RUN --mount=type=bind,source=uv.lock,target=uv.lock \
+    --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev --no-editable
 
 # Install Firestore into the venv
-RUN uv pip install --python=/app/.venv/bin/python --no-cache google-cloud-firestore
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv pip install --python=/app/.venv/bin/python google-cloud-firestore
 
-# Clean up
+# Clean up bytecode
 RUN find /app/.venv -name '__pycache__' -type d -exec rm -rf {} + && \
     find /app/.venv -name '*.pyc' -delete && \
     find /app/.venv -name '*.pyo' -delete
