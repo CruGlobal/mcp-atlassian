@@ -38,7 +38,7 @@ gcloud run deploy mcp-atlassian \
   --set-env-vars="ATLASSIAN_OAUTH_CLIENT_STORAGE_MODE=factory" \
   --set-env-vars="ATLASSIAN_OAUTH_CLIENT_STORAGE_FACTORY=firestore_store.store:create_store" \
   --set-env-vars="ATLASSIAN_OAUTH_CLIENT_STORAGE_CONFIG_JSON={\"project_id\":\"${PROJECT}\"}" \
-  --set-env-vars="RESOLVE_HOST_ENTRY=10.16.0.59 jira.cru.org jira.aws.cru.org" \
+  --set-env-vars="RESOLVE_HOST_ENTRY=10.16.0.151 jira.cru.org jira.aws.cru.org" \
   --set-secrets="ATLASSIAN_OAUTH_CLIENT_SECRET=jira-oauth-client-secret:latest"
 
 echo ""
