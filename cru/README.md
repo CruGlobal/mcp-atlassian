@@ -81,7 +81,7 @@ bash cru/deploy.sh
 | Region | us-east4 |
 | Shared VPC host | `cru-shared-vpc-host-prod-2` |
 | Subnet | `stage-1` (10.37.128.0/24, us-east4) |
-| Jira DC | jira.cru.org → 10.16.0.65 (AWS internal) |
+| Jira DC | jira.cru.org → 10.16.0.119 (AWS internal) |
 | Jira DC version | v10.7.4 |
 | Service URL | https://mcp-atlassian-178891842216.us-east4.run.app |
 | Firestore | native mode, us-east1 |
