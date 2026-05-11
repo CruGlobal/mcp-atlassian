@@ -29,7 +29,7 @@ gcloud run deploy mcp-atlassian \
   --allow-unauthenticated \
   --port=3000 \
   --set-env-vars="TRANSPORT=streamable-http" \
-  --set-env-vars="JIRA_URL=https://jira.cru.org" \
+  --set-env-vars="JIRA_URL=https://jira.aws.cru.org" \
   --set-env-vars="ATLASSIAN_OAUTH_PROXY_ENABLE=true" \
   --set-env-vars="ATLASSIAN_OAUTH_CLIENT_ID=${JIRA_OAUTH_CLIENT_ID}" \
   --set-env-vars="ATLASSIAN_OAUTH_REDIRECT_URI=${SERVICE_URL}/callback" \
@@ -38,7 +38,6 @@ gcloud run deploy mcp-atlassian \
   --set-env-vars="ATLASSIAN_OAUTH_CLIENT_STORAGE_MODE=factory" \
   --set-env-vars="ATLASSIAN_OAUTH_CLIENT_STORAGE_FACTORY=firestore_store.store:create_store" \
   --set-env-vars="ATLASSIAN_OAUTH_CLIENT_STORAGE_CONFIG_JSON={\"project_id\":\"${PROJECT}\"}" \
-  --set-env-vars="RESOLVE_HOST_ENTRY=10.16.0.119 jira.cru.org jira.aws.cru.org" \
   --set-secrets="ATLASSIAN_OAUTH_CLIENT_SECRET=jira-oauth-client-secret:latest"
 
 echo ""
