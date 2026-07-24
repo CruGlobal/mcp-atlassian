@@ -29,7 +29,7 @@ gcloud run deploy mcp-atlassian \
   --allow-unauthenticated \
   --port=3000 \
   --set-env-vars="TRANSPORT=streamable-http" \
-  --set-env-vars="JIRA_URL=https://jira.aws.cru.org" \
+  --set-env-vars="JIRA_URL=https://jira.cru.org" \
   --set-env-vars="ATLASSIAN_OAUTH_PROXY_ENABLE=true" \
   --set-env-vars="ATLASSIAN_OAUTH_CLIENT_ID=${JIRA_OAUTH_CLIENT_ID}" \
   --set-env-vars="ATLASSIAN_OAUTH_REDIRECT_URI=${SERVICE_URL}/callback" \

@@ -7,8 +7,9 @@ Remote MCP server for Jira Data Center (jira.cru.org) with per-user OAuth.
 - Cloud Run service in `us-east4` with Direct VPC Egress through the shared VPC
 - OAuth proxy (FastMCP) handles per-user OAuth against Jira DC
 - Firestore stores OAuth tokens so they survive instance restarts
-- `/etc/hosts` injection fakes DNS for `jira.cru.org` (resolves to AWS internal IPs)
-- `egress-internal` network tag required for shared VPC firewall to allow 10.0.0.0/8 egress
+- Jira is reached via its public hostname `jira.cru.org` (public ALB since 2026-07). The
+  VPC attachment (`egress-internal` tag, shared VPC subnet) is a leftover from when Jira
+  was internal-only and could now be removed.
 
 ## Setup from scratch
 
@@ -81,7 +82,7 @@ bash cru/deploy.sh
 | Region | us-east4 |
 | Shared VPC host | `cru-shared-vpc-host-prod-2` |
 | Subnet | `stage-1` (10.37.128.0/24, us-east4) |
-| Jira DC | jira.cru.org → 10.16.0.119 (AWS internal) |
+| Jira DC | jira.cru.org (public ALB; was AWS-internal until 2026-07) |
 | Jira DC version | v10.7.4 |
 | Service URL | https://mcp-atlassian-178891842216.us-east4.run.app |
 | Firestore | native mode, us-east1 |
@@ -90,8 +91,10 @@ bash cru/deploy.sh
 ## Gotchas
 
 - **`/healthz` returns Google 404**: Cloud Run's GFE intercepts this path. Use `/mcp` (returns 401 with OAuth challenge) to verify the app is running.
-- **`egress-internal` network tag**: Required on the Cloud Run service for the shared VPC firewall to allow egress to Jira (10.16.x.x). Without it, token exchange times out silently.
-- **DNS not available**: Cloud Run in the shared VPC can't resolve `jira.cru.org` (AWS internal DNS). The `RESOLVE_HOST_ENTRY` env var injects `/etc/hosts` entries via the entrypoint script.
+- **Jira went public (2026-07)**: `jira.cru.org` now resolves to public ALB IPs, and the
+  `jira.aws.cru.org` private-zone records were deleted. `JIRA_URL` must be
+  `https://jira.cru.org`. The old workarounds (`RESOLVE_HOST_ENTRY` /etc/hosts injection,
+  `egress-internal` tag for 10.16.x.x egress, `jira.aws.cru.org` private DNS) are obsolete.
 - **`--platform linux/amd64`**: Required when building on Apple Silicon. Without it, Cloud Run fails with `exec format error`.
-- **VPC egress must be `private-ranges-only`**: `all-traffic` routes Google API calls (Firestore gRPC) through the VPC which lacks Private Google Access. `private-ranges-only` routes only Jira traffic (10.x.x.x) through the VPC while Google APIs go direct.
+- **VPC egress must be `private-ranges-only`**: `all-traffic` routes Google API calls (Firestore gRPC) and now Jira's public IPs through the VPC, which lacks Private Google Access / internet NAT. `private-ranges-only` sends public destinations (Google APIs, jira.cru.org) direct.
 - **`google-cloud-firestore` must be installed into the venv**: The base image uses `/app/.venv`. System-level `pip install` won't be visible. Use `uv pip install --python=/app/.venv/bin/python` in the Dockerfile.
