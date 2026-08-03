@@ -97,4 +97,13 @@ bash cru/deploy.sh
   `egress-internal` tag for 10.16.x.x egress, `jira.aws.cru.org` private DNS) are obsolete.
 - **`--platform linux/amd64`**: Required when building on Apple Silicon. Without it, Cloud Run fails with `exec format error`.
 - **VPC egress must be `private-ranges-only`**: `all-traffic` routes Google API calls (Firestore gRPC) and now Jira's public IPs through the VPC, which lacks Private Google Access / internet NAT. `private-ranges-only` sends public destinations (Google APIs, jira.cru.org) direct.
+- **Firestore TTL policies**: `FirestoreStore` writes a Timestamp `expires_at` on every
+  entry given a TTL, but Firestore only garbage-collects it if a TTL policy exists on the
+  field. `setup-gcp.sh` now creates them for the six `mcp_atlassian_*` collection groups.
+  Deletion is a background sweep — expect up to 24h, and reads already treat expired
+  entries as missing, so lag is harmless.
+- **DCR client registrations grow unbounded**: FastMCP's `_client_store.put()` passes no
+  `ttl`, so `mcp_atlassian_mcp-oauth-proxy-clients` docs have `expires_at = null` and no
+  TTL policy can collect them. Each client reconnect writes a new one. Prune manually if
+  it gets large.
 - **`google-cloud-firestore` must be installed into the venv**: The base image uses `/app/.venv`. System-level `pip install` won't be visible. Use `uv pip install --python=/app/.venv/bin/python` in the Dockerfile.

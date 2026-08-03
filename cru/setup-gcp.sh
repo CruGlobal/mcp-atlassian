@@ -18,6 +18,31 @@ gcloud firestore databases create \
   --project="$PROJECT" \
   2>/dev/null || echo "Firestore database already exists, skipping"
 
+echo "=== Enable Firestore TTL policies ==="
+# The FirestoreStore writes a Timestamp `expires_at` on every entry that has a
+# TTL; these policies let Firestore garbage-collect them in the background.
+# Without them, expired docs linger forever (reads still treat them as missing).
+# Note: mcp-oauth-proxy-clients is included for completeness, but FastMCP stores
+# DCR client registrations with no TTL, so its expires_at is always null and
+# nothing there is ever collected.
+for COLLECTION in \
+  mcp_atlassian_mcp-upstream-tokens \
+  mcp_atlassian_mcp-refresh-tokens \
+  mcp_atlassian_mcp-jti-mappings \
+  mcp_atlassian_mcp-authorization-codes \
+  mcp_atlassian_mcp-oauth-transactions \
+  mcp_atlassian_mcp-oauth-proxy-clients
+do
+  gcloud firestore fields ttls update expires_at \
+    --collection-group="$COLLECTION" \
+    --enable-ttl \
+    --database='(default)' \
+    --project="$PROJECT" \
+    --quiet --async \
+    >/dev/null 2>&1 && echo "  TTL enabled: $COLLECTION" \
+    || echo "  TTL already set (or failed): $COLLECTION"
+done
+
 echo "=== Create Artifact Registry repo ==="
 gcloud artifacts repositories create mcp-atlassian \
   --repository-format=docker \
