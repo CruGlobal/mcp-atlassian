@@ -65,6 +65,32 @@ Add to `~/.config/claude/claude_desktop_config.json`:
 
 First connection triggers OAuth — you'll be redirected to Jira to authorize.
 
+## Rotating OAuth credentials
+
+Creds expire periodically (next: **2026-11-01**; recurring calendar reminder set).
+There is no REST API for this — Jira DC has never shipped one
+([JRASERVER-61753](https://jira.atlassian.com/browse/JRASERVER-61753), open since 2016),
+so step 1 is manual.
+
+1. **Jira admin**: regenerate the secret on the *existing* incoming application link
+   rather than recreating the link — that keeps the client id stable. If the link is
+   recreated, Jira reissues **both** values.
+2. Add whichever values changed (`printf`, not `echo` — a trailing newline breaks it):
+   ```bash
+   printf '%s' NEW_ID     | gcloud secrets versions add jira-oauth-client-id     --data-file=- --project=cru-mattdrees-sandbox-poc
+   printf '%s' NEW_SECRET | gcloud secrets versions add jira-oauth-client-secret --data-file=- --project=cru-mattdrees-sandbox-poc
+   ```
+3. `bash cru/deploy.sh` — both are wired to `:latest`, so this is a config change only.
+4. Reconnect in claude.ai, then confirm `/callback` returns 302 (not 500):
+   ```bash
+   gcloud logging read 'resource.labels.service_name="mcp-atlassian" AND httpRequest.requestUrl:"/callback?code="' \
+     --project=cru-mattdrees-sandbox-poc --limit=5 --format='value(timestamp,httpRequest.status)'
+   ```
+
+All users must re-authorize afterwards — stored upstream tokens are bound to the old
+client id. A stale client id fails with the *same* `invalid_client` error as a stale
+secret, so check both before assuming the secret is wrong.
+
 ## Redeploying after code changes
 
 ```bash

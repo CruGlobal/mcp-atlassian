@@ -58,24 +58,36 @@ gcloud projects add-iam-policy-binding "$PROJECT" \
   --condition=None \
   --quiet
 
-echo "=== Store OAuth client secret ==="
-echo "Enter the Jira OAuth client secret (will be stored in Secret Manager):"
-read -rs JIRA_SECRET
-echo "$JIRA_SECRET" | gcloud secrets create jira-oauth-client-secret \
-  --data-file=- \
-  --project="$PROJECT" \
-  2>/dev/null || {
-    echo "Secret already exists, creating new version"
-    echo "$JIRA_SECRET" | gcloud secrets versions add jira-oauth-client-secret \
-      --data-file=- \
-      --project="$PROJECT"
-  }
+echo "=== Store OAuth client id + secret ==="
+# Both live in Secret Manager so a rotation never requires a code change.
+# printf (not echo) — a trailing newline becomes part of the secret value and
+# Jira then rejects the credential.
+store_secret() {
+  local NAME="$1" VALUE="$2"
+  printf '%s' "$VALUE" | gcloud secrets create "$NAME" \
+    --data-file=- \
+    --project="$PROJECT" \
+    2>/dev/null || {
+      echo "  $NAME exists, adding new version"
+      printf '%s' "$VALUE" | gcloud secrets versions add "$NAME" \
+        --data-file=- \
+        --project="$PROJECT" >/dev/null
+    }
+  gcloud secrets add-iam-policy-binding "$NAME" \
+    --member="serviceAccount:${SA_EMAIL}" \
+    --role="roles/secretmanager.secretAccessor" \
+    --project="$PROJECT" \
+    --quiet >/dev/null
+}
 
-gcloud secrets add-iam-policy-binding jira-oauth-client-secret \
-  --member="serviceAccount:${SA_EMAIL}" \
-  --role="roles/secretmanager.secretAccessor" \
-  --project="$PROJECT" \
-  --quiet
+echo "Enter the Jira OAuth client id:"
+read -r JIRA_CLIENT_ID
+echo "Enter the Jira OAuth client secret (hidden):"
+read -rs JIRA_SECRET
+echo
+
+store_secret jira-oauth-client-id "$JIRA_CLIENT_ID"
+store_secret jira-oauth-client-secret "$JIRA_SECRET"
 
 echo ""
 echo "=== Done ==="
