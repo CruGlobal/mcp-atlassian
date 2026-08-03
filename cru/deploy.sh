@@ -15,7 +15,7 @@ NETWORK="projects/${SHARED_VPC_PROJECT}/global/networks/shared-vpc-prod"
 SUBNET="projects/${SHARED_VPC_PROJECT}/regions/us-east4/subnetworks/stage-1"
 
 # Jira DC OAuth client ID (registered in Jira Application Links)
-JIRA_OAUTH_CLIENT_ID="a8fe4d1f5436d7138c94ecfa22afd187"
+JIRA_OAUTH_CLIENT_ID="500181779b8f58b3c8f2b4e436658420"
 
 gcloud run deploy mcp-atlassian \
   --image="$IMAGE" \
