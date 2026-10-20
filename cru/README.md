@@ -80,7 +80,11 @@ so step 1 is manual.
    printf '%s' NEW_ID     | gcloud secrets versions add jira-oauth-client-id     --data-file=- --project=cru-mattdrees-sandbox-poc
    printf '%s' NEW_SECRET | gcloud secrets versions add jira-oauth-client-secret --data-file=- --project=cru-mattdrees-sandbox-poc
    ```
-3. `bash cru/deploy.sh` — both are wired to `:latest`, so this is a config change only.
+3. Roll a new revision so it picks up `:latest` (keeps the current image, unlike `deploy.sh`):
+   ```bash
+   gcloud run services update mcp-atlassian --region=us-east4 --project=cru-mattdrees-sandbox-poc \
+     --update-labels=creds-rotated=$(date +%Y%m%d)
+   ```
 4. Reconnect in claude.ai, then confirm `/callback` returns 302 (not 500):
    ```bash
    gcloud logging read 'resource.labels.service_name="mcp-atlassian" AND httpRequest.requestUrl:"/callback?code="' \
