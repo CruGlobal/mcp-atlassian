@@ -4,12 +4,11 @@ Remote MCP server for Jira Data Center (jira.cru.org) with per-user OAuth.
 
 ## Architecture
 
-- Cloud Run service in `us-east4` with Direct VPC Egress through the shared VPC
+- Cloud Run service in `us-east4`, no VPC attachment
 - OAuth proxy (FastMCP) handles per-user OAuth against Jira DC
 - Firestore stores OAuth tokens so they survive instance restarts
 - Jira is reached via its public hostname `jira.cru.org` (public ALB since 2026-07). The
-  VPC attachment (`egress-internal` tag, shared VPC subnet) is a leftover from when Jira
-  was internal-only and could now be removed.
+  shared VPC attachment from when Jira was internal-only was removed 2026-10-20.
 
 ## Setup from scratch
 
@@ -17,7 +16,8 @@ Remote MCP server for Jira Data Center (jira.cru.org) with per-user OAuth.
 
 Apply `google/projects/mattdrees-sandbox/service-accounts.tf` to create:
 - `mcp-atlassian` service account
-- `compute.networkUser` on the `stage-1` subnet for both the SA and Cloud Run service agent
+- (obsolete) `compute.networkUser` on the `stage-1` subnet for the SA and Cloud Run service
+  agent; unused since the VPC attachment was removed
 
 ### 2. Register OAuth app in Jira DC
 
@@ -106,8 +106,6 @@ bash cru/deploy.sh
 |---|---|
 | GCP project | `cru-mattdrees-sandbox-poc` (project number: 178891842216) |
 | Region | us-east4 |
-| Shared VPC host | `cru-shared-vpc-host-prod-2` |
-| Subnet | `stage-1` (10.37.128.0/24, us-east4) |
 | Jira DC | jira.cru.org (public ALB; was AWS-internal until 2026-07) |
 | Jira DC version | v10.7.4 |
 | Service URL | https://mcp-atlassian-178891842216.us-east4.run.app |
@@ -122,7 +120,9 @@ bash cru/deploy.sh
   `https://jira.cru.org`. The old workarounds (`RESOLVE_HOST_ENTRY` /etc/hosts injection,
   `egress-internal` tag for 10.16.x.x egress, `jira.aws.cru.org` private DNS) are obsolete.
 - **`--platform linux/amd64`**: Required when building on Apple Silicon. Without it, Cloud Run fails with `exec format error`.
-- **VPC egress must be `private-ranges-only`**: `all-traffic` routes Google API calls (Firestore gRPC) and now Jira's public IPs through the VPC, which lacks Private Google Access / internet NAT. `private-ranges-only` sends public destinations (Google APIs, jira.cru.org) direct.
+- **No VPC**: if one is ever re-added, egress must be `private-ranges-only`. `all-traffic`
+  routes Firestore gRPC and Jira's public IPs through the shared VPC, which lacks Private
+  Google Access / internet NAT.
 - **Firestore TTL policies**: `FirestoreStore` writes a Timestamp `expires_at` on every
   entry given a TTL, but Firestore only garbage-collects it if a TTL policy exists on the
   field. `setup-gcp.sh` now creates them for the six `mcp_atlassian_*` collection groups.

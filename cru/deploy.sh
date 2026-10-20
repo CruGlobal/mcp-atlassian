@@ -10,10 +10,6 @@ SA_EMAIL="mcp-atlassian@${PROJECT}.iam.gserviceaccount.com"
 IMAGE="us-central1-docker.pkg.dev/${PROJECT}/mcp-atlassian/mcp-atlassian:latest"
 SERVICE_URL="https://mcp-atlassian-178891842216.us-east4.run.app"
 
-SHARED_VPC_PROJECT=cru-shared-vpc-host-prod-2
-NETWORK="projects/${SHARED_VPC_PROJECT}/global/networks/shared-vpc-prod"
-SUBNET="projects/${SHARED_VPC_PROJECT}/regions/us-east4/subnetworks/stage-1"
-
 # Jira DC OAuth client id + secret both come from Secret Manager, so a
 # credential rotation is a config change (add secret version + redeploy) and
 # never a code change. Jira reissues BOTH values when an application link is
@@ -24,10 +20,6 @@ gcloud run deploy mcp-atlassian \
   --region="$REGION" \
   --project="$PROJECT" \
   --service-account="$SA_EMAIL" \
-  --network="$NETWORK" \
-  --subnet="$SUBNET" \
-  --network-tags=egress-internal \
-  --vpc-egress=private-ranges-only \
   --allow-unauthenticated \
   --port=3000 \
   --set-env-vars="TRANSPORT=streamable-http" \
